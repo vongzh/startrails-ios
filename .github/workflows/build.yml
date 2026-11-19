@@ -1,0 +1,99 @@
+name: Build iOS
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-ios-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 解析版本号
+        id: meta
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER=$(grep -m1 'MARKETING_VERSION:' project.yml | sed -E 's/.*"([^"]+)".*/\1/')
+          fi
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "构建版本：${VER}"
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 生成 Xcode 工程
+        run: xcodegen generate
+
+      - name: 编译 iOS 模拟器版本（含 Widget Extension）
+        run: |
+          set -o pipefail
+          if ! xcodebuild \
+            -project Startrails.xcodeproj \
+            -scheme Startrails \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            MARKETING_VERSION="${{ steps.meta.outputs.version }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee /tmp/ios-sim-build.log; then
+            grep -n -C 2 "error:" /tmp/ios-sim-build.log | tail -n 80 || true
+            exit 1
+          fi
+
+      - name: 打包未签名 iOS IPA 产物
+        run: |
+          set -o pipefail
+          VER="${{ steps.meta.outputs.version }}"
+          rm -rf build/Payload build/Startrails-*.ipa build/Startrails.xcarchive
+          if ! xcodebuild \
+            -project Startrails.xcodeproj \
+            -scheme Startrails \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Startrails.xcarchive \
+            MARKETING_VERSION="${VER}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive 2>&1 | tee /tmp/ios-archive.log; then
+            grep -n -C 2 "error:" /tmp/ios-archive.log | tail -n 80 || true
+            exit 1
+          fi
+          mkdir -p build/Payload
+          cp -R build/Startrails.xcarchive/Products/Applications/Startrails.app build/Payload/
+          (cd build && zip -r "Startrails-${VER}-unsigned.ipa" Payload)
+          echo "IPA_PATH=build/Startrails-${VER}-unsigned.ipa" >> "$GITHUB_ENV"
+
+      - name: 上传构建产物（Actions Artifact）
+        uses: actions/upload-artifact@v4
+        with:
+          name: Startrails-${{ steps.meta.outputs.version }}-unsigned-ipa
+          path: ${{ env.IPA_PATH }}
+
+      - name: Tag 发布时自动创建/更新 Release 并附带 IPA
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "${IPA_PATH}" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" "${IPA_PATH}" \
+              --title "${GITHUB_REF_NAME}" \
+              --generate-notes
+          fi

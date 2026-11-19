@@ -1,0 +1,44 @@
+# ---- Xcode 工程与构建产物 ----
+# Startrails.xcodeproj 由 XcodeGen (project.yml) 动态生成，不直接入库
+*.xcodeproj/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+build/
+DerivedData/
+.build/
+.swiftpm/
+
+# ---- 用户本地 Xcode 状态与签名产物 ----
+xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.ipa
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+*.mobileprovision
+*.p12
+*.cer
+
+# ---- Fastlane / 凭据环境变量 ----
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+.env
+.env.*
+
+# ---- 编辑器与操作系统 ----
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo

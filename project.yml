@@ -1,0 +1,72 @@
+name: Startrails
+options:
+  bundleIdPrefix: com.vongzh
+  deploymentTarget:
+    iOS: "17.0"
+  defaultConfig: Release
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.11"
+    CURRENT_PROJECT_VERSION: "2"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  Startrails:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Startrails
+        excludes:
+          - "**/*.plist"
+          - "**/*.entitlements"
+      - path: Shared
+    resources:
+      - path: Startrails/Resources/Assets.xcassets
+      - path: Startrails/Resources/world-dot-map.json
+    settings:
+      base:
+        PRODUCT_NAME: Startrails
+        PRODUCT_BUNDLE_IDENTIFIER: com.vongzh.startrails
+        INFOPLIST_FILE: Startrails/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Startrails/Startrails.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    dependencies:
+      - target: StartrailsWidget
+        embed: true
+
+  StartrailsWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: StartrailsWidget
+        excludes:
+          - "**/*.plist"
+          - "**/*.entitlements"
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_NAME: StartrailsWidget
+        PRODUCT_BUNDLE_IDENTIFIER: com.vongzh.startrails.widget
+        INFOPLIST_FILE: StartrailsWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: StartrailsWidget/StartrailsWidget.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: YES
+
+schemes:
+  Startrails:
+    build:
+      targets:
+        Startrails: all
+        StartrailsWidget: all
+    run:
+      config: Debug
+    archive:
+      config: Release
